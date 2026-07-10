@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 
 const EXAM = {
   nombre: "Cálculo Diferencial - Parcial 2",
@@ -17,6 +18,7 @@ const STEPS = [
 ];
 
 export default function EduverifyCameraCheck() {
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -79,12 +81,12 @@ export default function EduverifyCameraCheck() {
     if (countdown === null) return;
     if (countdown === 0) {
       stopStream();
-      alert("✅ Ingresando al examen...");
+      navigate("/student/submit-exam");
       return;
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 800);
     return () => clearTimeout(t);
-  }, [countdown, stopStream]);
+  }, [countdown, stopStream, navigate]);
 
   const stepStatus = (id) => {
     if (id === "camara") return permState === "granted" ? "done" : permState === "requesting" ? "active" : "pending";

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const TEACHER = { nombre: "Roberto", apellido: "Salas", institucion: "Universidad Nacional" };
 
@@ -37,6 +38,7 @@ const FILTERS = [
 ];
 
 export default function EduverifyTeacherDashboard() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("todos");
   const [monitorExam, setMonitorExam] = useState(undefined);
 
@@ -179,7 +181,7 @@ export default function EduverifyTeacherDashboard() {
               <h1>Hola, {TEACHER.nombre} 👋</h1>
               <p>{TEACHER.institucion} — Panel de control de tus evaluaciones</p>
             </div>
-            <button className="ev-btn-new">+ Crear examen</button>
+            <button className="ev-btn-new" onClick={() => navigate("/teacher/create-exam")}>+ Crear examen</button>
           </div>
 
           {/* STATS (HU-15) */}
@@ -308,7 +310,7 @@ export default function EduverifyTeacherDashboard() {
 
             <div className="ev-monitor-section-title">Transmisión de estudiantes</div>
             <div className="ev-monitor-grid">
-              {["Carlos Mendoza", "Ana Torres", "Diego Vargas", "Valeria Quispe", "Luis Herrera", "Camila Ríos"].map((name, i) => {
+              {["Carlos Mendoza", "Ana Torres", "Diego Vargas", "Valeria Quispe", "Luis Herrera", "Camila Ríos"].map((name) => {
                 const hasAlert = examAlerts.some((a) => a.estudiante === name);
                 return (
                   <div className={`ev-cam-tile${hasAlert ? " warn" : ""}`} key={name}>

@@ -1,6 +1,5 @@
 import { useState } from "react";
-
-const TEACHER = { nombre: "Roberto", apellido: "Salas" };
+import { useNavigate } from "react-router-dom";
 
 // Exámenes existentes del docente, usados para validar duplicados y choques de horario
 const EXISTING_EXAMS = [
@@ -24,6 +23,7 @@ function toMinutes(hora) {
 }
 
 export default function EduverifyCreateExam() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0); // 0: datos básicos, 1: programación, 2: confirmación
   const [form, setForm] = useState({
     nombre: "",
@@ -223,7 +223,7 @@ export default function EduverifyCreateExam() {
         <div className="ev-page">
 
           {!done && (
-            <button className="ev-back">← Volver al dashboard</button>
+            <button className="ev-back" onClick={() => navigate("/teacher")}>← Volver al dashboard</button>
           )}
 
           {!done ? (
@@ -467,7 +467,7 @@ export default function EduverifyCreateExam() {
                   <div className="ev-success-card-title">{form.nombre}</div>
                   <div className="ev-success-card-meta">{form.curso} · {fechaFormateada} · {form.hora} · {form.duracion} min</div>
                 </div>
-                <button className="ev-btn-full">Volver al dashboard</button>
+                <button className="ev-btn-full" onClick={() => navigate("/teacher")}>Volver al dashboard</button>
               </div>
             </div>
           )}

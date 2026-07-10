@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const MOCK_EMAILS = ["admin@eduverify.com", "test@test.com", "docente@uni.edu"];

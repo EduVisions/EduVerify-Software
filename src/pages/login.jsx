@@ -470,6 +470,17 @@ export default function EduVerifyLogin() {
     setAuthError(null);
   };
 
+  useEffect(() => {
+    if (!loggedUser) return;
+    const routeByRole = {
+      estudiante: "/student",
+      docente: "/teacher",
+      admin: "/teacher",
+    };
+    const t = setTimeout(() => navigate(routeByRole[loggedUser.role] || "/student"), 1900);
+    return () => clearTimeout(t);
+  }, [loggedUser, navigate]);
+
   const handleSubmit = () => {
     if (!email || !password) return;
     setLoading(true);

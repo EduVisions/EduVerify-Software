@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const STUDENT = { nombre: "María", apellido: "Gonzáles", institucion: "Universidad Nacional" };
 
@@ -25,6 +26,7 @@ const FILTERS = [
 ];
 
 export default function EduverifyStudentDashboard() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("todos");
   // cameraModal: undefined = closed | null = generic check | exam object = check before entering that exam
   const [cameraModal, setCameraModal] = useState(undefined);
@@ -285,7 +287,13 @@ export default function EduverifyStudentDashboard() {
                 className="ev-modal-btn primary"
                 disabled={cameraStatus !== "granted"}
                 style={cameraStatus !== "granted" ? { opacity: 0.5, cursor: "not-allowed" } : {}}
-                onClick={closeModal}
+                onClick={() => {
+                  if (cameraModal) {
+                    navigate("/student/access-exam");
+                    return;
+                  }
+                  navigate("/student/camera-check");
+                }}
               >
                 {cameraModal ? "Ingresar al examen" : "Listo"}
               </button>
