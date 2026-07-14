@@ -1,20 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-// Exámenes existentes del docente, usados para validar duplicados y choques de horario
-const EXISTING_EXAMS = [
-  { nombre: "Cálculo Diferencial - Parcial 2", curso: "Matemática II", fecha: "2026-06-22", hora: "09:00", duracion: 90 },
-  { nombre: "Estructuras de Datos - Final", curso: "Programación III", fecha: "2026-06-25", hora: "14:30", duracion: 120 },
-  { nombre: "Bases de Datos - Quiz 3", curso: "Bases de Datos", fecha: "2026-06-28", hora: "11:00", duracion: 45 },
-];
+import { useAuth } from "../../hooks/useAuth.js";
+import { useExams } from "../../hooks/useExams.js";
 
 const CURSOS = ["Matemática I", "Matemática II", "Programación III", "Bases de Datos", "Física I", "Inglés Técnico"];
 
+// Código de acceso único para el examen nuevo — sin esto, el examen se crea
+// pero ningún estudiante podría entrar (access_exam_student.jsx exige
+// exam.codigoAcceso). Se excluyen caracteres ambiguos (0/O, 1/I) a mano.
+function generarCodigoAcceso() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return `EV-${code}`;
+}
+
 const TIPOS = [
-  { id: "parcial", label: "Parcial", icon: "📘" },
-  { id: "final", label: "Final", icon: "🎯" },
-  { id: "quiz", label: "Quiz", icon: "⚡" },
-  { id: "practica", label: "Práctica", icon: "✏️" },
+  { id: "parcial", label: "Parcial", icon: "ti-book" },
+  { id: "final", label: "Final", icon: "ti-target-arrow" },
+  { id: "quiz", label: "Quiz", icon: "ti-bolt" },
+  { id: "practica", label: "Práctica", icon: "ti-pencil" },
 ];
 
 function toMinutes(hora) {
@@ -24,6 +29,11 @@ function toMinutes(hora) {
 
 export default function EduverifyCreateExam() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // `exams` es la lista real y creciente del contexto (ya no una lista
+  // congelada de ejemplo), así que la validación de nombre duplicado y
+  // choque de horario de más abajo compara contra los exámenes de verdad.
+  const { exams, addExam } = useExams();
   const [step, setStep] = useState(0); // 0: datos básicos, 1: programación, 2: confirmación
   const [form, setForm] = useState({
     nombre: "",
@@ -41,6 +51,7 @@ export default function EduverifyCreateExam() {
   const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [codigoAcceso, setCodigoAcceso] = useState("");
 
   const setField = (k, v) => {
     setForm((p) => ({ ...p, [k]: v }));
@@ -57,7 +68,7 @@ export default function EduverifyCreateExam() {
     const e = {};
     if (!form.nombre.trim()) e.nombre = "El nombre del examen es requerido";
     // Escenario: Nombre de examen duplicado
-    else if (EXISTING_EXAMS.some((ex) => ex.nombre.toLowerCase() === form.nombre.trim().toLowerCase()))
+    else if (exams.some((ex) => ex.nombre.toLowerCase() === form.nombre.trim().toLowerCase()))
       e.nombre = "Ya existe un examen con ese nombre";
     if (!form.curso) e.curso = "Selecciona un curso";
     if (!form.tipo) e.tipo = "Selecciona el tipo de examen";
@@ -80,7 +91,7 @@ export default function EduverifyCreateExam() {
     if (!e.fecha && !e.hora) {
       const newStart = toMinutes(form.hora);
       const newEnd = newStart + Number(form.duracion);
-      const conflict = EXISTING_EXAMS.find((ex) => {
+      const conflict = exams.find((ex) => {
         if (ex.fecha !== form.fecha) return false;
         const exStart = toMinutes(ex.hora);
         const exEnd = exStart + ex.duracion;
@@ -107,6 +118,25 @@ export default function EduverifyCreateExam() {
   const handleCreate = async () => {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 1500));
+    const code = generarCodigoAcceso();
+    // addExam() mete el examen en ExamsContext (estado compartido): a partir
+    // de aquí ya aparece en /teacher y es "entrable" desde /student con este
+    // código, sin necesidad de recargar nada.
+    addExam({
+      nombre: form.nombre.trim(),
+      curso: form.curso,
+      docente: user ? `${user.nombre} ${user.apellido}` : "Docente",
+      fecha: form.fecha,
+      hora: form.hora,
+      duracion: Number(form.duracion),
+      estado: "programado",
+      nota: null,
+      inscritos: 0,
+      conectados: 0,
+      alertas: 0,
+      codigoAcceso: code,
+    });
+    setCodigoAcceso(code);
     setLoading(false);
     setDone(true);
   };
@@ -188,7 +218,7 @@ export default function EduverifyCreateExam() {
 
         /* Buttons */
         .ev-btn-row{display:flex;gap:10px;margin-top:1.5rem;}
-        .ev-btn-back{height:46px;padding:0 20px;background:#fff;color:#5a607a;border:1.5px solid #e4e7ef;border-radius:11px;font-size:13.5px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .18s;white-space:nowrap;}
+        .ev-btn-back{height:46px;padding:0 20px;background:#fff;color:#5a607a;border:1.5px solid #e4e7ef;border-radius:11px;font-size:13.5px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .18s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;}
         .ev-btn-back:hover{border-color:#b0b5c8;color:#12213f;}
         .ev-btn-primary{flex:1;height:46px;background:#12213f;color:#fff;border:none;border-radius:11px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,transform .1s;}
         .ev-btn-primary:hover{background:#1e3260;}
@@ -223,7 +253,7 @@ export default function EduverifyCreateExam() {
         <div className="ev-page">
 
           {!done && (
-            <button className="ev-back" onClick={() => navigate("/teacher")}>← Volver al dashboard</button>
+            <button className="ev-back" onClick={() => navigate("/teacher")}><i className="ti ti-arrow-left" /> Volver al dashboard</button>
           )}
 
           {!done ? (
@@ -236,12 +266,12 @@ export default function EduverifyCreateExam() {
               {/* STEPPER */}
               <div className="ev-stepper">
                 <div className="ev-step-pill">
-                  <div className={`ev-step-circle${step > 0 ? " done" : step === 0 ? " active" : ""}`}>{step > 0 ? "✓" : "1"}</div>
+                  <div className={`ev-step-circle${step > 0 ? " done" : step === 0 ? " active" : ""}`}>{step > 0 ? <i className="ti ti-check" /> : "1"}</div>
                   <span className={`ev-step-pill-label${step === 0 ? " active" : ""}`}>Datos del examen</span>
                 </div>
                 <div className={`ev-step-line${step > 0 ? " done" : ""}`} />
                 <div className="ev-step-pill">
-                  <div className={`ev-step-circle${step > 1 ? " done" : step === 1 ? " active" : ""}`}>{step > 1 ? "✓" : "2"}</div>
+                  <div className={`ev-step-circle${step > 1 ? " done" : step === 1 ? " active" : ""}`}>{step > 1 ? <i className="ti ti-check" /> : "2"}</div>
                   <span className={`ev-step-pill-label${step === 1 ? " active" : ""}`}>Programación</span>
                 </div>
                 <div className={`ev-step-line${step > 1 ? " done" : ""}`} />
@@ -304,7 +334,7 @@ export default function EduverifyCreateExam() {
                             className={`ev-tipo-card${form.tipo === t.id ? " selected" : ""}`}
                             onClick={() => setField("tipo", t.id)}
                           >
-                            <span className="ev-tipo-icon">{t.icon}</span>
+                            <i className={`ti ${t.icon} ev-tipo-icon`} />
                             <span className="ev-tipo-label">{t.label}</span>
                           </button>
                         ))}
@@ -324,7 +354,7 @@ export default function EduverifyCreateExam() {
                     </div>
 
                     <div className="ev-btn-row">
-                      <button className="ev-btn-primary" style={{ flex: 1 }} onClick={next}>Continuar →</button>
+                      <button className="ev-btn-primary" style={{ flex: 1 }} onClick={next}>Continuar <i className="ti ti-arrow-right" /></button>
                     </div>
                   </>
                 )}
@@ -375,7 +405,7 @@ export default function EduverifyCreateExam() {
 
                     <div className="ev-toggle-row">
                       <div className="ev-toggle-info">
-                        <span className="ev-toggle-icon">📷</span>
+                        <i className="ti ti-camera ev-toggle-icon" />
                         <div>
                           <div className="ev-toggle-title">Supervisión por cámara</div>
                           <div className="ev-toggle-desc">Requiere acceso a cámara web durante el examen</div>
@@ -389,7 +419,7 @@ export default function EduverifyCreateExam() {
 
                     <div className="ev-toggle-row">
                       <div className="ev-toggle-info">
-                        <span className="ev-toggle-icon">🖥️</span>
+                        <i className="ti ti-device-desktop ev-toggle-icon" />
                         <div>
                           <div className="ev-toggle-title">Forzar pantalla completa</div>
                           <div className="ev-toggle-desc">Bloquea el cambio de pestaña durante la evaluación</div>
@@ -402,8 +432,8 @@ export default function EduverifyCreateExam() {
                     </div>
 
                     <div className="ev-btn-row">
-                      <button className="ev-btn-back" onClick={() => setStep(0)}>← Atrás</button>
-                      <button className="ev-btn-primary" onClick={next}>Continuar →</button>
+                      <button className="ev-btn-back" onClick={() => setStep(0)}><i className="ti ti-arrow-left" /> Atrás</button>
+                      <button className="ev-btn-primary" onClick={next}>Continuar <i className="ti ti-arrow-right" /></button>
                     </div>
                   </>
                 )}
@@ -442,14 +472,14 @@ export default function EduverifyCreateExam() {
                     </div>
 
                     <div className="ev-summary-badges">
-                      {form.camara && <span className="ev-summary-badge">📷 Supervisión por cámara</span>}
-                      {form.pantallaCompleta && <span className="ev-summary-badge">🖥️ Pantalla completa forzada</span>}
+                      {form.camara && <span className="ev-summary-badge"><i className="ti ti-camera" /> Supervisión por cámara</span>}
+                      {form.pantallaCompleta && <span className="ev-summary-badge"><i className="ti ti-device-desktop" /> Pantalla completa forzada</span>}
                     </div>
 
                     <div className="ev-btn-row">
-                      <button className="ev-btn-back" onClick={() => setStep(1)}>← Atrás</button>
+                      <button className="ev-btn-back" onClick={() => setStep(1)}><i className="ti ti-arrow-left" /> Atrás</button>
                       <button className="ev-btn-primary" onClick={handleCreate} disabled={loading}>
-                        {loading ? <><span className="ev-spinner" /> Creando examen...</> : <>✓ Crear examen</>}
+                        {loading ? <><span className="ev-spinner" /> Creando examen...</> : <><i className="ti ti-check" /> Crear examen</>}
                       </button>
                     </div>
                   </>
@@ -460,12 +490,17 @@ export default function EduverifyCreateExam() {
           ) : (
             <div className="ev-card">
               <div className="ev-success">
-                <div className="ev-success-icon">🎉</div>
+                <div className="ev-success-icon"><i className="ti ti-circle-check" style={{ color: "#22b865" }} /></div>
                 <h2>¡Examen creado exitosamente!</h2>
                 <p>El examen ya está programado y visible para los estudiantes del curso.</p>
                 <div className="ev-success-card">
                   <div className="ev-success-card-title">{form.nombre}</div>
                   <div className="ev-success-card-meta">{form.curso} · {fechaFormateada} · {form.hora} · {form.duracion} min</div>
+                </div>
+                <div className="ev-summary-badges" style={{ justifyContent: "center", marginBottom: "1.5rem" }}>
+                  <span className="ev-summary-badge">
+                    <i className="ti ti-key" /> Código de acceso: <b>{codigoAcceso}</b>
+                  </span>
                 </div>
                 <button className="ev-btn-full" onClick={() => navigate("/teacher")}>Volver al dashboard</button>
               </div>

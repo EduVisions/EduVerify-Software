@@ -1,14 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-
-const EXAM = {
-  nombre: "Cálculo Diferencial - Parcial 2",
-  curso: "Matemática II",
-  docente: "Dr. Roberto Salas",
-  duracion: 90,
-};
-
-const STUDENT = { nombre: "María", apellido: "Gonzáles" };
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth.js";
+import { useExams } from "../../hooks/useExams.js";
 
 // Pasos del checklist previo al examen
 const STEPS = [
@@ -19,6 +12,11 @@ const STEPS = [
 
 export default function EduverifyCameraCheck() {
   const navigate = useNavigate();
+  const { examId } = useParams();
+  const { user } = useAuth();
+  const { getExamById } = useExams();
+  const exam = getExamById(examId);
+  const student = user || { nombre: "Invitado", apellido: "" };
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -37,6 +35,11 @@ export default function EduverifyCameraCheck() {
   useEffect(() => {
     return () => stopStream();
   }, [stopStream]);
+
+  // examId inválido o inexistente (ej. URL editada a mano) → de vuelta al dashboard.
+  useEffect(() => {
+    if (!exam) navigate("/student");
+  }, [exam, navigate]);
 
   const requestCamera = async () => {
     setPermState("requesting");
@@ -81,12 +84,12 @@ export default function EduverifyCameraCheck() {
     if (countdown === null) return;
     if (countdown === 0) {
       stopStream();
-      navigate("/student/submit-exam");
+      navigate(`/student/access-exam/${examId}`);
       return;
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 800);
     return () => clearTimeout(t);
-  }, [countdown, stopStream, navigate]);
+  }, [countdown, stopStream, navigate, examId]);
 
   const stepStatus = (id) => {
     if (id === "camara") return permState === "granted" ? "done" : permState === "requesting" ? "active" : "pending";
@@ -94,6 +97,9 @@ export default function EduverifyCameraCheck() {
     if (id === "entorno") return envChecked ? "done" : faceDetected ? "active" : "pending";
     return "pending";
   };
+
+  // No renderizar con datos vacíos mientras el useEffect de arriba redirige.
+  if (!exam) return null;
 
   return (
     <>
@@ -127,6 +133,7 @@ export default function EduverifyCameraCheck() {
         .ev-cam-video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
         .ev-cam-placeholder{display:flex;flex-direction:column;align-items:center;gap:14px;color:#5a6d94;text-align:center;padding:1.5rem;}
         .ev-cam-placeholder-icon{font-size:44px;}
+        .ev-cam-placeholder-icon.ti-loader-2{animation:spin .8s linear infinite;}
         .ev-cam-placeholder p{font-size:13px;max-width:280px;line-height:1.6;}
         .ev-cam-overlay-badge{position:absolute;top:12px;left:12px;background:rgba(34,184,101,0.15);border:1px solid #22b865;color:#5fe0a0;font-size:11px;font-weight:500;padding:5px 11px;border-radius:20px;display:flex;align-items:center;gap:6px;}
         .ev-cam-rec-dot{width:7px;height:7px;border-radius:50%;background:#e05252;animation:pulse 1.4s infinite;}
@@ -192,12 +199,12 @@ export default function EduverifyCameraCheck() {
               <div className="ev-logo-box">🎓</div>
               <div>
                 <div className="ev-header-title">Verificación previa al examen</div>
-                <div className="ev-header-sub">{STUDENT.nombre} {STUDENT.apellido} · Eduverify</div>
+                <div className="ev-header-sub">{student.nombre} {student.apellido} · Eduverify</div>
               </div>
             </div>
             <div className="ev-exam-chip">
-              <div className="ev-exam-chip-name">{EXAM.nombre}</div>
-              <div className="ev-exam-chip-meta">{EXAM.curso} · {EXAM.duracion} min</div>
+              <div className="ev-exam-chip-name">{exam.nombre}</div>
+              <div className="ev-exam-chip-meta">{exam.curso} · {exam.duracion} min</div>
             </div>
           </div>
 
@@ -205,27 +212,34 @@ export default function EduverifyCameraCheck() {
           <div className="ev-body">
             {/* CAMERA */}
             <div className="ev-cam-area">
-              <div className="ev-cam-title">📷 Vista previa de tu cámara</div>
+              <div className="ev-cam-title"><i className="ti ti-camera" /> Vista previa de tu cámara</div>
 
               <div className={`ev-cam-frame${permState === "granted" ? " granted" : ""}${permState === "denied" ? " denied" : ""}${permState === "notfound" ? " notfound" : ""}`}>
+                <video
+                  ref={videoRef}
+                  className="ev-cam-video"
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ display: permState === "granted" ? "block" : "none" }}
+                />
                 {permState === "granted" ? (
                   <>
-                    <video ref={videoRef} className="ev-cam-video" autoPlay playsInline muted />
                     <div className="ev-face-frame visible" />
                     <div className="ev-cam-overlay-badge">
                       <span className="ev-cam-rec-dot" /> Transmisión activa
                     </div>
                     {countdown !== null && (
                       <div className="ev-countdown-overlay">
-                        <div className="ev-countdown-num">{countdown === 0 ? "✓" : countdown}</div>
+                        <div className="ev-countdown-num">{countdown === 0 ? <i className="ti ti-check" /> : countdown}</div>
                       </div>
                     )}
                   </>
                 ) : (
                   <div className="ev-cam-placeholder">
-                    <span className="ev-cam-placeholder-icon">
-                      {permState === "denied" ? "🚫" : permState === "notfound" ? "⚠️" : permState === "requesting" ? "⏳" : "📷"}
-                    </span>
+                    <i className={`ti ev-cam-placeholder-icon ${
+                      permState === "denied" ? "ti-camera-off" : permState === "notfound" ? "ti-alert-triangle" : permState === "requesting" ? "ti-loader-2" : "ti-camera"
+                    }`} />
                     <p>
                       {permState === "idle" && "Necesitamos acceder a tu cámara web para verificar tu identidad y supervisar el examen."}
                       {permState === "requesting" && "Esperando confirmación del permiso de cámara en tu navegador..."}
@@ -239,19 +253,19 @@ export default function EduverifyCameraCheck() {
 
               {permState === "denied" && (
                 <div className="ev-error-box denied">
-                  🚫 <span>Has bloqueado el acceso a la cámara. Habilítalo desde la configuración de tu navegador (icono de candado en la barra de direcciones) y vuelve a intentarlo.</span>
+                  <i className="ti ti-camera-off" /> <span>Has bloqueado el acceso a la cámara. Habilítalo desde la configuración de tu navegador (icono de candado en la barra de direcciones) y vuelve a intentarlo.</span>
                 </div>
               )}
               {permState === "notfound" && (
                 <div className="ev-error-box notfound">
-                  ⚠️ <span>Verifica que tu cámara esté conectada y no esté siendo usada por otra aplicación, luego reintenta.</span>
+                  <i className="ti ti-alert-triangle" /> <span>Verifica que tu cámara esté conectada y no esté siendo usada por otra aplicación, luego reintenta.</span>
                 </div>
               )}
 
               <div className="ev-btn-row">
                 {permState === "idle" && (
                   <button className="ev-btn-cam primary" onClick={requestCamera}>
-                    📷 Permitir acceso a la cámara
+                    <i className="ti ti-camera" /> Permitir acceso a la cámara
                   </button>
                 )}
                 {permState === "requesting" && (
@@ -261,12 +275,12 @@ export default function EduverifyCameraCheck() {
                 )}
                 {(permState === "denied" || permState === "notfound" || permState === "error") && (
                   <button className="ev-btn-cam retry" onClick={requestCamera}>
-                    ↻ Reintentar
+                    <i className="ti ti-refresh" /> Reintentar
                   </button>
                 )}
                 {permState === "granted" && (
                   <button className="ev-btn-cam retry" onClick={requestCamera}>
-                    ↻ Reiniciar cámara
+                    <i className="ti ti-refresh" /> Reiniciar cámara
                   </button>
                 )}
               </div>
@@ -286,7 +300,7 @@ export default function EduverifyCameraCheck() {
                 return (
                   <div className="ev-step" key={s.id}>
                     <div className={`ev-step-circle${status === "done" ? " done" : status === "active" ? " active" : ""}`}>
-                      {status === "done" ? "✓" : status === "active" ? <span className="ev-step-spin" /> : ""}
+                      {status === "done" ? <i className="ti ti-check" /> : status === "active" ? <span className="ev-step-spin" /> : ""}
                     </div>
                     <div>
                       <div className={`ev-step-name${status === "pending" ? " pending" : ""}`}>{s.label}</div>
@@ -297,7 +311,7 @@ export default function EduverifyCameraCheck() {
               })}
 
               <div className="ev-rules-box">
-                <div className="ev-rules-title">🛈 Antes de continuar</div>
+                <div className="ev-rules-title"><i className="ti ti-info-circle" /> Antes de continuar</div>
                 <ul className="ev-rules-list">
                   <li>· Ubícate en un espacio bien iluminado</li>
                   <li>· Mantén tu rostro visible durante todo el examen</li>
@@ -322,7 +336,7 @@ export default function EduverifyCameraCheck() {
                 : "Completando verificación..."}
             </div>
             <button className="ev-btn-enter" disabled={!allReady || countdown !== null} onClick={startCountdown}>
-              {countdown !== null ? "Ingresando..." : "Ingresar al examen →"}
+              {countdown !== null ? "Ingresando..." : <>Ingresar al examen <i className="ti ti-arrow-right" /></>}
             </button>
           </div>
 

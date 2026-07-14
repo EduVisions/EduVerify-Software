@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const MOCK_EMAILS = ["admin@eduverify.com", "test@test.com", "docente@uni.edu"];
+const MOCK_EMAILS = ["test@test.com", "docente@uni.edu"];
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Sora:wght@400;600;700&display=swap');
@@ -606,7 +606,6 @@ export default function EduVerifyRegister() {
   return (
     <>
       <style>{styles}</style>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
 
       <div className="ev-root">
         <div className="ev-bg-grid" />

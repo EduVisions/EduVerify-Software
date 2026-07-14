@@ -1,12 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-// Usuarios mock registrados (simula BD)
-const MOCK_USERS = [
-  { email: "ana@universidad.edu", password: "Test1234!", role: "estudiante", name: "Ana García" },
-  { email: "docente@uni.edu",     password: "Docente1!", role: "docente",    name: "Carlos Mendoza" },
-  { email: "admin@eduverify.com", password: "Admin123!", role: "admin",      name: "Admin EduVerify" },
-];
+import { MOCK_USERS } from "../data/mockUsers.js";
+import { useAuth } from "../hooks/useAuth.js";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Sora:wght@400;600;700&display=swap');
@@ -387,7 +382,6 @@ const styles = `
 const ROLE_META = {
   estudiante: { label: "Estudiante",  color: "#387AFF", bg: "rgba(56,122,255,0.12)",  icon: "ti-school",      avatarBg: "rgba(56,122,255,0.15)"  },
   docente:    { label: "Docente",     color: "#63F0C6", bg: "rgba(99,240,198,0.12)",  icon: "ti-chalkboard",  avatarBg: "rgba(99,240,198,0.15)"  },
-  admin:      { label: "Admin",       color: "#EF9F27", bg: "rgba(239,159,39,0.12)",  icon: "ti-shield-check",avatarBg: "rgba(239,159,39,0.15)"  },
 };
 
 function Toast({ show, type, title, subtitle }) {
@@ -428,7 +422,7 @@ function SuccessScreen({ user }) {
       <div className="ev-success-icon">
         <i className={`ti ${meta.icon}`} style={{ color: meta.color }} />
       </div>
-      <h2>¡Bienvenido, {user.name.split(" ")[0]}!</h2>
+      <h2>¡Bienvenido, {user.nombre}!</h2>
       <p>Autenticación exitosa. Redirigiendo a tu panel...</p>
       <div className="ev-role-badge" style={{ background: meta.bg, color: meta.color }}>
         <i className={`ti ${meta.icon}`} style={{ fontSize: 13 }} />
@@ -443,6 +437,7 @@ function SuccessScreen({ user }) {
 
 export default function EduVerifyLogin() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail]         = useState("");
   const [password, setPassword]   = useState("");
   const [showPwd, setShowPwd]     = useState(false);
@@ -475,7 +470,6 @@ export default function EduVerifyLogin() {
     const routeByRole = {
       estudiante: "/student",
       docente: "/teacher",
-      admin: "/teacher",
     };
     const t = setTimeout(() => navigate(routeByRole[loggedUser.role] || "/student"), 1900);
     return () => clearTimeout(t);
@@ -493,8 +487,9 @@ export default function EduVerifyLogin() {
       );
 
       if (user) {
-        setLoggedUser(user);
-        showToast("success", "Acceso autorizado", `Bienvenido, ${user.name}`);
+        setLoggedUser(user); // estado local: dispara la pantalla de éxito de esta página
+        login(user); // AuthContext: el resto de la app (topbars, dashboards) ya sabe quién entró
+        showToast("success", "Acceso autorizado", `Bienvenido, ${user.nombre} ${user.apellido}`);
       } else {
         const next = attempts + 1;
         setAttempts(next);
@@ -523,7 +518,6 @@ export default function EduVerifyLogin() {
   return (
     <>
       <style>{styles}</style>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
 
       <div className="ev-root">
         <div className="ev-grid" />
@@ -552,7 +546,7 @@ export default function EduVerifyLogin() {
                     <i className={`ti ${meta.icon}`} style={{ color: meta.color, fontSize: 16 }} />
                   </div>
                   <div className="ev-hint-info">
-                    <div className="ev-hint-name">{u.name}</div>
+                    <div className="ev-hint-name">{u.nombre} {u.apellido}</div>
                     <div className="ev-hint-email">{u.email}</div>
                   </div>
                   <span className="ev-hint-role" style={{ background: meta.bg, color: meta.color }}>

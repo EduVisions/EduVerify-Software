@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-
-const EXAM = {
-  nombre: "Cálculo Diferencial - Parcial 2",
-  curso: "Matemática II",
-  docente: "Dr. Roberto Salas",
-  duracion: 90,
-};
-
-const STUDENT = { nombre: "María", apellido: "Gonzáles" };
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth.js";
+import { useExams } from "../../hooks/useExams.js";
 
 const ANSWER_SUMMARY = {
   total: 20,
@@ -17,18 +10,30 @@ const ANSWER_SUMMARY = {
 };
 
 const SESSION_LOG = [
-  { label: "Inicio del examen", time: "09:00:14", icon: "▶️" },
-  { label: "Verificación de cámara exitosa", time: "09:00:08", icon: "📷" },
-  { label: "Incidencias detectadas", time: "2 alertas menores", icon: "⚠️" },
-  { label: "Envío del examen", time: "10:24:51", icon: "✅" },
+  { label: "Inicio del examen", time: "09:00:14", icon: "ti-player-play" },
+  { label: "Verificación de cámara exitosa", time: "09:00:08", icon: "ti-camera" },
+  { label: "Incidencias detectadas", time: "2 alertas menores", icon: "ti-alert-triangle" },
+  { label: "Envío del examen", time: "10:24:51", icon: "ti-circle-check" },
 ];
 
-// Estados del flujo: confirming (antes de enviar) -> submitting -> submitted | error
+// Estados del flujo: submitting -> submitted | error
+// La confirmación de envío ocurre en el modal de exam_in_progress; esta pantalla
+// solo muestra el progreso del envío.
 export default function EduverifySubmitExam() {
   const navigate = useNavigate();
-  const [phase, setPhase] = useState("confirming");
+  const { examId } = useParams();
+  const { user } = useAuth();
+  const { getExamById } = useExams();
+  const exam = getExamById(examId);
+  const student = user || { nombre: "Invitado", apellido: "" };
+  const [phase, setPhase] = useState("submitting");
   const [progress, setProgress] = useState(0);
   const [confirmationCode] = useState("EV-483921");
+
+  // examId inválido o inexistente (ej. URL editada a mano) → de vuelta al dashboard.
+  useEffect(() => {
+    if (!exam) navigate("/student");
+  }, [exam, navigate]);
 
   useEffect(() => {
     if (phase !== "submitting") return;
@@ -51,21 +56,13 @@ export default function EduverifySubmitExam() {
     }
   }, [phase, progress]);
 
-  const handleConfirmSubmit = () => {
-    setProgress(0);
-    setPhase("submitting");
-  };
-
   const handleRetry = () => {
-    setPhase("confirming");
-  };
-
-  // Escenario alterno: simular fallo de envío (problema de red, por ejemplo)
-  const simulateError = () => {
     setProgress(0);
     setPhase("submitting");
-    setTimeout(() => setPhase("error"), 1400);
   };
+
+  // No renderizar con datos vacíos mientras el useEffect de arriba redirige.
+  if (!exam) return null;
 
   return (
     <>
@@ -150,56 +147,9 @@ export default function EduverifySubmitExam() {
       <div className="ev-wrap">
         <div className="ev-card">
 
-          {phase === "confirming" && (
-            <>
-              <div className="ev-confirm-header">
-                <div className="ev-confirm-icon">📝</div>
-                <h1>¿Enviar examen?</h1>
-                <p>Esta acción no se puede deshacer</p>
-              </div>
-
-              <div className="ev-body">
-                <div className="ev-progress-summary">
-                  <div className="ev-psum-card">
-                    <div className="ev-psum-value">{ANSWER_SUMMARY.total}</div>
-                    <div className="ev-psum-label">Preguntas</div>
-                  </div>
-                  <div className="ev-psum-card">
-                    <div className="ev-psum-value">{ANSWER_SUMMARY.respondidas}</div>
-                    <div className="ev-psum-label">Respondidas</div>
-                  </div>
-                  <div className="ev-psum-card warn">
-                    <div className="ev-psum-value">{ANSWER_SUMMARY.sinResponder}</div>
-                    <div className="ev-psum-label">Sin responder</div>
-                  </div>
-                </div>
-
-                {ANSWER_SUMMARY.sinResponder > 0 && (
-                  <div className="ev-warn-box">
-                    ⚠️ <span>Tienes <b>{ANSWER_SUMMARY.sinResponder} preguntas sin responder</b>. Si envías ahora, quedarán marcadas como no respondidas.</span>
-                  </div>
-                )}
-
-                <div className="ev-exam-recap">
-                  <div className="ev-recap-title">{EXAM.nombre}</div>
-                  <div className="ev-recap-meta">{EXAM.curso} · {EXAM.docente}</div>
-                </div>
-
-                <div className="ev-btn-row">
-                  <button className="ev-btn-back" onClick={() => navigate("/student/camera-check")}>← Volver al examen</button>
-                  <button className="ev-btn-submit" onClick={handleConfirmSubmit}>
-                    ✓ Enviar examen
-                  </button>
-                </div>
-
-                <button className="ev-dev-note" onClick={simulateError}>Simular error de envío (demo)</button>
-              </div>
-            </>
-          )}
-
           {phase === "submitting" && (
             <div className="ev-submitting">
-              <div className="ev-submitting-icon">📤</div>
+              <div className="ev-submitting-icon"><i className="ti ti-upload" /></div>
               <h2>Enviando tu examen...</h2>
               <p>No cierres ni recargues esta ventana</p>
               <div className="ev-progress-track">
@@ -211,18 +161,18 @@ export default function EduverifySubmitExam() {
 
           {phase === "submitted" && (
             <div className="ev-submitted">
-              <div className="ev-check-circle">✅</div>
+              <div className="ev-check-circle"><i className="ti ti-circle-check" style={{ color: "#22b865" }} /></div>
               <h2>¡Examen enviado con éxito!</h2>
               <p>Tu sesión fue registrada correctamente. Tu docente recibirá tus respuestas junto con el reporte de supervisión.</p>
 
               <div className="ev-receipt">
                 <div className="ev-receipt-row">
                   <span className="ev-receipt-label">Examen</span>
-                  <span className="ev-receipt-value">{EXAM.nombre}</span>
+                  <span className="ev-receipt-value">{exam.nombre}</span>
                 </div>
                 <div className="ev-receipt-row">
                   <span className="ev-receipt-label">Estudiante</span>
-                  <span className="ev-receipt-value">{STUDENT.nombre} {STUDENT.apellido}</span>
+                  <span className="ev-receipt-value">{student.nombre} {student.apellido}</span>
                 </div>
                 <div className="ev-receipt-row">
                   <span className="ev-receipt-label">Preguntas respondidas</span>
@@ -238,7 +188,7 @@ export default function EduverifySubmitExam() {
               <div className="ev-log-list">
                 {SESSION_LOG.map((log) => (
                   <div className="ev-log-item" key={log.label}>
-                    <span className="ev-log-icon">{log.icon}</span>
+                    <span className="ev-log-icon"><i className={`ti ${log.icon}`} /></span>
                     <span>{log.label}</span>
                     <span className="ev-log-time">{log.time}</span>
                   </div>
@@ -251,11 +201,11 @@ export default function EduverifySubmitExam() {
 
           {phase === "error" && (
             <div className="ev-error-phase">
-              <div className="ev-error-circle">⚠️</div>
+              <div className="ev-error-circle"><i className="ti ti-alert-triangle" style={{ color: "#e05252" }} /></div>
               <h2>No se pudo enviar el examen</h2>
               <p>Hubo un problema de conexión al enviar tus respuestas. Tus respuestas se guardaron localmente y puedes reintentar el envío.</p>
-              <button className="ev-btn-retry" onClick={handleRetry}>↻ Reintentar envío</button>
-              <div className="ev-note-saved">💾 Tus respuestas están guardadas. No las perderás.</div>
+              <button className="ev-btn-retry" onClick={handleRetry}><i className="ti ti-refresh" /> Reintentar envío</button>
+              <div className="ev-note-saved"><i className="ti ti-device-floppy" /> Tus respuestas están guardadas. No las perderás.</div>
             </div>
           )}
 
